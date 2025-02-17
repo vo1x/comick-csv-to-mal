@@ -151,8 +151,8 @@ function processFile(inputCsv: string): void {
 const inputCsv = process.argv[2];
 
 if (!inputCsv) {
-  console.error("Error: Please provide a CSV file path");
-  console.error("Usage: node script.js <csv-file-path>");
+  console.error("Please provide a CSV file path");
+  console.error("Usage: bun index.ts <csv-file-path>");
   process.exit(1);
 }
 
