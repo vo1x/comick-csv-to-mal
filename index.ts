@@ -1,20 +1,25 @@
 import * as fs from "fs";
 import type { MangaEntry, CsvRow, MangaStatus } from "./types";
 
-// Constants and pre-compiled patterns
-const VALID_STATUSES = new Map<string, MangaStatus>([
-  ["Reading", "Reading"],
-  ["Completed", "Completed"],
-  ["On-Hold", "On-Hold"],
-  ["Dropped", "Dropped"],
-  ["Plan to Read", "Plan to Read"],
-]);
+const VALID_STATUSES: Record<string, MangaStatus> = {
+  Reading: "Reading",
+  Completed: "Completed",
+  "On-Hold": "On-Hold",
+  Dropped: "Dropped",
+  "Plan to Read": "Plan to Read",
+};
 
 const MAL_ID_REGEX = /manga\/(\d+)/;
 const DATE_FORMATS = [/^(\d{4})-(\d{2})-(\d{2})$/, /^(\d{2})-(\d{2})-(\d{4})$/];
 const QUOTE_REGEX = /^"|"$/g;
 
-// Parser functions
+function readCsvFile(filePath: string): string[] {
+  return fs
+    .readFileSync(filePath, "utf-8")
+    .split("\n")
+    .filter((line) => line.trim());
+}
+
 function parseCsvLine(line: string): CsvRow {
   const values: string[] = [];
   const buffer: string[] = [];
@@ -43,7 +48,6 @@ function parseCsvLine(line: string): CsvRow {
   };
 }
 
-// Utility functions
 function extractMalId(url: string | undefined): string {
   const match = url?.match(MAL_ID_REGEX);
   return match?.[1] || "0";
@@ -60,10 +64,9 @@ function parseDate(dateStr: string | undefined): string {
 }
 
 function validateStatus(status: string | undefined): MangaStatus {
-  return VALID_STATUSES.get(status || "") || "Plan to Read";
+  return VALID_STATUSES[status || ""] || "Plan to Read";
 }
 
-// XML building functions
 function calculateStatusCounts(entries: MangaEntry[]): Record<string, number> {
   return entries.reduce((acc, entry) => {
     const status = entry.my_status.toLowerCase().replace(/\s+/g, "");
@@ -109,16 +112,12 @@ function buildXml(entries: MangaEntry[]): string {
 
 function processFile(inputCsv: string): void {
   try {
-    const fileContent = fs.readFileSync(inputCsv, "utf-8");
-    const lines = fileContent.split("\n").filter((line) => line.trim());
+    const lines = readCsvFile(inputCsv);
 
     const results: MangaEntry[] = lines.slice(1).map((line) => {
       const row = parseCsvLine(line);
-      const malId = extractMalId(row.mal);
-      const status = validateStatus(row.type);
-
       return {
-        manga_mangadb_id: malId,
+        manga_mangadb_id: extractMalId(row.mal),
         manga_title: `<![CDATA[${row.title}]]>`,
         manga_volumes: "0",
         manga_chapters: "0",
@@ -130,7 +129,7 @@ function processFile(inputCsv: string): void {
         my_scanalation_group: "",
         my_score: row.rating || "0",
         my_storage: "",
-        my_status: status,
+        my_status: validateStatus(row.type),
         my_comments: "",
         my_times_read: "0",
         my_tags: "",
